@@ -54,8 +54,7 @@ button:disabled{background:#9ca3af;cursor:not-allowed}
 .editing{color:#16a34a}
 
 .table-wrap{
-  overflow-x:auto;
-  overflow-y:auto;
+  overflow:auto;
   background:white;
   border-radius:12px;
   box-shadow:0 2px 10px rgba(0,0,0,.08);
@@ -120,6 +119,14 @@ th.name-col{
   background:#fecaca !important;
 }
 
+.scroll-spacer{
+  min-width:calc(100vw - var(--name-col-width) - var(--vote-col-width) - 55px);
+  width:calc(100vw - var(--name-col-width) - var(--vote-col-width) - 55px);
+  border-right:0;
+  background:transparent !important;
+  pointer-events:none;
+}
+
 input{
   box-sizing:border-box;
   width:100%;
@@ -173,7 +180,7 @@ input:disabled{
 </div>
 
 <div class="note">
-  左側人物名稱固定，右側日期與票數可水平捲動。
+  左側人物名稱固定，右側可水平捲動到最右，讓人物總票數對齊人物名稱。
 </div>
 
 <script type="module">
@@ -437,6 +444,7 @@ function renderTable(){
   });
 
   html += "<th class='total-col'>人物總票數</th>";
+  html += "<th class='scroll-spacer'></th>";
   html += "</tr>";
 
   people.forEach((person,pIndex)=>{
@@ -465,6 +473,7 @@ function renderTable(){
     });
 
     html += `<td class="total-col">${personTotal}</td>`;
+    html += "<td class='scroll-spacer'></td>";
     html += "</tr>";
   });
 
@@ -481,6 +490,7 @@ function renderTable(){
   });
 
   html += `<td>${grandTotal}</td>`;
+  html += "<td class='scroll-spacer'></td>";
   html += "</tr>";
 
   table.innerHTML = html;
