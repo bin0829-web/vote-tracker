@@ -4,13 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>票數統計工具</title>
-
 <style>
-:root{
-  --name-col-width: 180px;
-  --vote-col-width: 135px;
-}
-
 body{
   font-family:"Microsoft JhengHei",sans-serif;
   background:#f5f7fb;
@@ -41,7 +35,9 @@ button{
 
 button:hover{background:#1d4ed8}
 button:disabled{background:#9ca3af;cursor:not-allowed}
+
 .danger{background:#dc2626}
+.danger:hover{background:#b91c1c}
 
 .status{
   text-align:center;
@@ -58,14 +54,13 @@ button:disabled{background:#9ca3af;cursor:not-allowed}
   border-radius:12px;
   box-shadow:0 2px 10px rgba(0,0,0,.08);
   padding:0;
-  max-height:75vh;
-  border:1px solid #d1d5db;
+  max-height:70vh;
+  position:relative;
 }
 
 table{
   border-collapse:separate;
   border-spacing:0;
-  table-layout:fixed;
   width:max-content;
   min-width:100%;
 }
@@ -75,8 +70,7 @@ th,td{
   border-bottom:1px solid #d1d5db;
   padding:8px;
   text-align:center;
-  min-width:var(--vote-col-width);
-  width:var(--vote-col-width);
+  white-space:nowrap;
   background:white;
 }
 
@@ -85,27 +79,27 @@ th{
   font-weight:bold;
   position:sticky;
   top:0;
-  z-index:3;
+  z-index:5;
 }
 
 .name-col{
+  background:#fef3c7;
+  font-weight:bold;
   position:sticky;
   left:0;
   z-index:4;
-  min-width:var(--name-col-width);
-  width:var(--name-col-width);
-  background:#fef3c7;
-  font-weight:bold;
-  box-shadow:2px 0 4px rgba(0,0,0,.08);
+  min-width:var(--nameColWidth, 160px);
+  max-width:var(--nameColWidth, 160px);
 }
 
 th.name-col{
-  z-index:6;
+  z-index:8;
 }
 
 .total-col{
   background:#dcfce7;
   font-weight:bold;
+  min-width:120px;
 }
 
 .total-row td{
@@ -117,9 +111,15 @@ th.name-col{
   background:#fecaca;
 }
 
+.vote-cell,
+.date-cell{
+  min-width:120px;
+  max-width:120px;
+}
+
 input{
-  box-sizing:border-box;
   width:100%;
+  box-sizing:border-box;
   padding:6px;
   text-align:center;
   border:1px solid #cbd5e1;
@@ -137,19 +137,11 @@ input{
 }
 
 input:disabled{
-  background:#f8fafc;
-  color:#334155;
-}
-
-.note{
-  text-align:center;
-  color:#64748b;
-  font-size:13px;
-  margin-top:10px;
+  background:#f3f4f6;
+  color:#374151;
 }
 </style>
 </head>
-
 <body>
 
 <h1>票數統計工具</h1>
@@ -167,10 +159,6 @@ input:disabled{
 
 <div class="table-wrap">
   <table id="voteTable"></table>
-</div>
-
-<div class="note">
-  左側人物名稱已固定，可左右拖曳下方捲軸查看日期票數。
 </div>
 
 <script type="module">
@@ -198,19 +186,29 @@ let dates = ["5/10"];
 let people = ["人物A", "人物B"];
 let votes = {};
 
-function voteKey(person, date){
-  return person + "|||" + date;
-}
+window.loginEdit = function() {
+  const pwd = prompt("請輸入編輯密碼");
 
-function oldVoteKey(person, date){
-  return person + "_" + date;
-}
+  if (pwd === null) return;
 
-function getVote(person, date){
-  return Number(votes[voteKey(person,date)] ?? votes[oldVoteKey(person,date)] ?? 0);
-}
+  if (pwd === EDIT_PASSWORD) {
+    isEditMode = true;
+    sessionStorage.setItem("vote_edit_mode", "true");
+    updateMode();
+    renderTable();
+  } else {
+    alert("密碼錯誤");
+  }
+};
 
-function updateMode(){
+window.logoutEdit = function() {
+  isEditMode = false;
+  sessionStorage.removeItem("vote_edit_mode");
+  updateMode();
+  renderTable();
+};
+
+function updateMode() {
   document.getElementById("modeText").innerHTML = isEditMode
     ? "<span class='editing'>目前狀態：編輯模式</span>"
     : "<span class='readonly'>目前狀態：唯讀模式</span>";
@@ -223,212 +221,66 @@ function updateMode(){
   document.getElementById("clearBtn").disabled = !isEditMode;
 }
 
-function saveData(){
-  if(!isEditMode) return;
+function saveData() {
+  if (!isEditMode) return;
   renderTable();
-  set(dataRef,{dates,people,votes});
+  set(dataRef, { dates, people, votes });
 }
 
-onValue(dataRef, snapshot=>{
+onValue(dataRef, snapshot => {
   const data = snapshot.val();
 
-  if(data){
+  if (data) {
     dates = data.dates || [];
     people = data.people || [];
     votes = data.votes || {};
+  } else {
+    dates = ["5/10"];
+    people = ["人物A", "人物B"];
+    votes = {};
+    if (isEditMode) saveData();
   }
 
   updateMode();
   renderTable();
 });
 
-window.loginEdit = function(){
-  const pwd = prompt("請輸入編輯密碼");
-
-  if(pwd === null) return;
-
-  if(pwd === EDIT_PASSWORD){
-    isEditMode = true;
-    sessionStorage.setItem("vote_edit_mode","true");
-    updateMode();
-    renderTable();
-  }else{
-    alert("密碼錯誤");
-  }
-};
-
-window.logoutEdit = function(){
-  isEditMode = false;
-  sessionStorage.removeItem("vote_edit_mode");
-  updateMode();
-  renderTable();
-};
-
-window.addDate = function(){
-  if(!isEditMode) return;
-
-  const newDate = prompt("請輸入日期，例如：5/11");
-  if(!newDate) return;
-
-  if(dates.includes(newDate)){
-    alert("這個日期已經存在");
-    return;
-  }
-
-  dates.push(newDate);
-  saveData();
-};
-
-window.addPerson = function(){
-  if(!isEditMode) return;
-
-  const newPerson = prompt("請輸入人物名稱");
-  if(!newPerson) return;
-
-  if(people.includes(newPerson)){
-    alert("這個人物已經存在");
-    return;
-  }
-
-  people.push(newPerson);
-  saveData();
-};
-
-window.clearData = function(){
-  if(!isEditMode) return;
-  if(!confirm("確定要清空所有資料嗎？")) return;
-
-  dates = ["5/10"];
-  people = ["人物A","人物B"];
-  votes = {};
-  saveData();
-};
-
-window.exportCSV = function(){
-  let csv = "人物名稱," + dates.join(",") + ",人物總票數\n";
-
-  people.forEach(person=>{
-    let row = [person];
-    let total = 0;
-
-    dates.forEach(date=>{
-      const value = getVote(person,date);
-      row.push(value);
-      total += value;
-    });
-
-    row.push(total);
-    csv += row.join(",") + "\n";
-  });
-
-  let totalRow = ["每日總票數"];
-  let grandTotal = 0;
-
-  dates.forEach(date=>{
-    let dateTotal = 0;
-    people.forEach(person=>dateTotal += getVote(person,date));
-    totalRow.push(dateTotal);
-    grandTotal += dateTotal;
-  });
-
-  totalRow.push(grandTotal);
-  csv += totalRow.join(",");
-
-  const blob = new Blob(["\uFEFF" + csv],{type:"text/csv;charset=utf-8;"});
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "票數統計.csv";
-  link.click();
-};
-
-function renameDate(index,newName){
-  if(!isEditMode) return;
-
-  newName = newName.trim();
-  if(!newName){
-    renderTable();
-    return;
-  }
-
-  const oldName = dates[index];
-  dates[index] = newName;
-
-  const newVotes = {};
-
-  Object.keys(votes).forEach(key=>{
-    if(key.includes("|||")){
-      const [person,date] = key.split("|||");
-      newVotes[voteKey(person,date === oldName ? newName : date)] = votes[key];
-    }else{
-      newVotes[key.replace("_" + oldName,"_" + newName)] = votes[key];
-    }
-  });
-
-  votes = newVotes;
-  saveData();
+function getVote(person, date) {
+  return Number(votes[person + "_" + date]) || 0;
 }
 
-function renamePerson(index,newName){
-  if(!isEditMode) return;
-
-  newName = newName.trim();
-  if(!newName){
-    renderTable();
-    return;
-  }
-
-  const oldName = people[index];
-  people[index] = newName;
-
-  const newVotes = {};
-
-  Object.keys(votes).forEach(key=>{
-    if(key.includes("|||")){
-      const [person,date] = key.split("|||");
-      newVotes[voteKey(person === oldName ? newName : person,date)] = votes[key];
-    }else{
-      newVotes[key.replace(oldName + "_",newName + "_")] = votes[key];
-    }
-  });
-
-  votes = newVotes;
-  saveData();
-}
-
-function setVote(personIndex,dateIndex,value){
-  if(!isEditMode) return;
+window.setVoteByIndex = function(personIndex, dateIndex, value) {
+  if (!isEditMode) return alert("請先進入編輯模式");
 
   const person = people[personIndex];
   const date = dates[dateIndex];
 
-  votes[voteKey(person,date)] = Number(value) || 0;
+  votes[person + "_" + date] = Number(value) || 0;
   saveData();
-}
+};
 
-function calcNameWidth(){
-  let maxLen = 4;
+function getNameColWidth() {
+  let maxLength = 4;
 
-  people.forEach(name=>{
-    maxLen = Math.max(maxLen, String(name).length);
+  people.forEach(name => {
+    maxLength = Math.max(maxLength, String(name).length);
   });
 
-  const width = Math.min(Math.max(maxLen * 18 + 70, 180), 420);
-  document.documentElement.style.setProperty("--name-col-width", width + "px");
+  return Math.max(160, maxLength * 18 + 70);
 }
 
-function renderTable(){
-  calcNameWidth();
-
+function renderTable() {
   const table = document.getElementById("voteTable");
-  let html = "";
+  document.documentElement.style.setProperty("--nameColWidth", getNameColWidth() + "px");
 
-  html += "<tr>";
+  let html = "<tr>";
   html += "<th class='name-col'>人物名稱</th>";
 
-  dates.forEach((date,index)=>{
+  dates.forEach((date, index) => {
     html += `
-      <th>
-        <input class="date-input date-edit" data-index="${index}" value="${escapeHtml(date)}" ${isEditMode ? "" : "disabled"}>
+      <th class="date-cell">
+        <input class="date-input" value="${htmlText(date)}" ${isEditMode ? "" : "disabled"}
+        onchange="renameDate(${index}, this.value)">
       </th>
     `;
   });
@@ -436,27 +288,26 @@ function renderTable(){
   html += "<th class='total-col'>人物總票數</th>";
   html += "</tr>";
 
-  people.forEach((person,pIndex)=>{
-    let personTotal = 0;
-
+  people.forEach((person, pIndex) => {
     html += "<tr>";
+
     html += `
       <td class="name-col">
-        <input class="name-input person-edit" data-index="${pIndex}" value="${escapeHtml(person)}" ${isEditMode ? "" : "disabled"}>
+        <input class="name-input" value="${htmlText(person)}" ${isEditMode ? "" : "disabled"}
+        onchange="renamePerson(${pIndex}, this.value)">
       </td>
     `;
 
-    dates.forEach((date,dIndex)=>{
-      const value = getVote(person,date);
+    let personTotal = 0;
+
+    dates.forEach((date, dIndex) => {
+      const value = getVote(person, date);
       personTotal += value;
 
       html += `
-        <td>
-          <input type="number" min="0" class="vote-edit"
-            data-person-index="${pIndex}"
-            data-date-index="${dIndex}"
-            value="${value}"
-            ${isEditMode ? "" : "disabled"}>
+        <td class="vote-cell">
+          <input type="number" min="0" value="${value}" ${isEditMode ? "" : "disabled"}
+          onchange="setVoteByIndex(${pIndex}, ${dIndex}, this.value)">
         </td>
       `;
     });
@@ -470,51 +321,187 @@ function renderTable(){
 
   let grandTotal = 0;
 
-  dates.forEach(date=>{
+  dates.forEach(date => {
     let dateTotal = 0;
-    people.forEach(person=>dateTotal += getVote(person,date));
+
+    people.forEach(person => {
+      dateTotal += getVote(person, date);
+    });
+
     grandTotal += dateTotal;
-    html += `<td>${dateTotal}</td>`;
+    html += `<td class="vote-cell">${dateTotal}</td>`;
   });
 
-  html += `<td>${grandTotal}</td>`;
+  html += `<td class="total-col">${grandTotal}</td>`;
   html += "</tr>";
 
   table.innerHTML = html;
-
-  document.querySelectorAll(".date-edit").forEach(input=>{
-    input.addEventListener("change",()=>{
-      renameDate(Number(input.dataset.index),input.value);
-    });
-  });
-
-  document.querySelectorAll(".person-edit").forEach(input=>{
-    input.addEventListener("change",()=>{
-      renamePerson(Number(input.dataset.index),input.value);
-    });
-  });
-
-  document.querySelectorAll(".vote-edit").forEach(input=>{
-    input.addEventListener("change",()=>{
-      setVote(
-        Number(input.dataset.personIndex),
-        Number(input.dataset.dateIndex),
-        input.value
-      );
-    });
-  });
 }
 
-function escapeHtml(text){
+window.addDate = function() {
+  if (!isEditMode) return alert("請先進入編輯模式");
+
+  const newDate = prompt("請輸入日期，例如：5/11");
+  if (newDate === null) return;
+
+  const value = newDate.trim();
+  if (!value) return;
+
+  if (dates.includes(value)) {
+    alert("這個日期已經存在");
+    return;
+  }
+
+  dates.push(value);
+  saveData();
+};
+
+window.addPerson = function() {
+  if (!isEditMode) return alert("請先進入編輯模式");
+
+  const newPerson = prompt("請輸入人物名稱");
+  if (newPerson === null) return;
+
+  const value = newPerson.trim();
+  if (!value) return;
+
+  if (people.includes(value)) {
+    alert("這個人物已經存在");
+    return;
+  }
+
+  people.push(value);
+  saveData();
+};
+
+window.renameDate = function(index, newName) {
+  if (!isEditMode) return;
+
+  const oldName = dates[index];
+  const value = newName.trim();
+
+  if (!value) {
+    renderTable();
+    return;
+  }
+
+  if (dates.includes(value) && value !== oldName) {
+    alert("這個日期已經存在");
+    renderTable();
+    return;
+  }
+
+  dates[index] = value;
+
+  const newVotes = {};
+  Object.keys(votes).forEach(key => {
+    const suffix = "_" + oldName;
+
+    if (key.endsWith(suffix)) {
+      const newKey = key.slice(0, -suffix.length) + "_" + value;
+      newVotes[newKey] = votes[key];
+    } else {
+      newVotes[key] = votes[key];
+    }
+  });
+
+  votes = newVotes;
+  saveData();
+};
+
+window.renamePerson = function(index, newName) {
+  if (!isEditMode) return;
+
+  const oldName = people[index];
+  const value = newName.trim();
+
+  if (!value) {
+    renderTable();
+    return;
+  }
+
+  if (people.includes(value) && value !== oldName) {
+    alert("這個人物已經存在");
+    renderTable();
+    return;
+  }
+
+  people[index] = value;
+
+  const newVotes = {};
+  Object.keys(votes).forEach(key => {
+    const prefix = oldName + "_";
+
+    if (key.startsWith(prefix)) {
+      const newKey = value + "_" + key.slice(prefix.length);
+      newVotes[newKey] = votes[key];
+    } else {
+      newVotes[key] = votes[key];
+    }
+  });
+
+  votes = newVotes;
+  saveData();
+};
+
+window.clearData = function() {
+  if (!isEditMode) return alert("請先進入編輯模式");
+  if (!confirm("確定要清空所有資料嗎？")) return;
+
+  dates = ["5/10"];
+  people = ["人物A", "人物B"];
+  votes = {};
+  saveData();
+};
+
+window.exportCSV = function() {
+  let csv = "人物名稱," + dates.join(",") + ",人物總票數\n";
+
+  people.forEach(person => {
+    let row = [person];
+    let total = 0;
+
+    dates.forEach(date => {
+      const value = getVote(person, date);
+      row.push(value);
+      total += value;
+    });
+
+    row.push(total);
+    csv += row.join(",") + "\n";
+  });
+
+  let totalRow = ["每日總票數"];
+  let grandTotal = 0;
+
+  dates.forEach(date => {
+    let dateTotal = 0;
+
+    people.forEach(person => {
+      dateTotal += getVote(person, date);
+    });
+
+    totalRow.push(dateTotal);
+    grandTotal += dateTotal;
+  });
+
+  totalRow.push(grandTotal);
+  csv += totalRow.join(",");
+
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "票數統計.csv";
+  link.click();
+};
+
+function htmlText(text) {
   return String(text)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;");
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
-
-updateMode();
-renderTable();
 </script>
 
 </body>
