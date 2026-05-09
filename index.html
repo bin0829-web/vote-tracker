@@ -60,6 +60,7 @@ button:disabled{background:#9ca3af;cursor:not-allowed}
   padding:0;
   max-height:75vh;
   border:1px solid #d1d5db;
+  position:relative;
 }
 
 table{
@@ -91,12 +92,12 @@ th{
 .name-col{
   position:sticky;
   left:0;
-  z-index:4;
+  z-index:10;
   min-width:var(--name-col-width);
   width:var(--name-col-width);
-  background:#fef3c7;
+  background:#fef3c7 !important;
   font-weight:bold;
-  box-shadow:2px 0 4px rgba(0,0,0,.08);
+  box-shadow:4px 0 8px rgba(0,0,0,.18);
 }
 
 th.name-col{
