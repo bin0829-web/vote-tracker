@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>票數統計工具</title>
+<style>
+  body {
+    font-family: "Microsoft JhengHei", sans-serif;
+    background: #f5f7fb;
+    margin: 0;
+    padding: 20px;
+    color: #222;
+  }
+
+  h1 {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  button {
+    border: none;
+    background: #2563eb;
+    color: white;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+  }
+
+  button:hover {
+    background: #1d4ed8;
+  }
+
+  .danger {
+    background: #dc2626;
+  }
+
+  .danger:hover {
+    background: #b91c1c;
+  }
+
+  .table-wrap {
+    overflow: auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.08);
+    padding: 12px;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 700px;
+  }
+
+  th, td {
+    border: 1px solid #d1d5db;
+    padding: 8px;
+    text-align: center;
+    min-width: 90px;
+  }
+
+  th {
+    background: #e0ecff;
+    font-weight: bold;
+  }
+
+  .name-col {
+    background: #fef3c7;
+    min-width: 130px;
+    font-weight: bold;
+  }
+
+  .total-col {
+    background: #dcfce7;
+    font-weight: bold;
+  }
+
+  .total-row td {
+    background: #fee2e2;
+    font-weight: bold;
+  }
+
+  input {
+    width: 80px;
+    padding: 5px;
+    text-align: center;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 15px;
+  }
+
+  .name-input {
+    width: 110px;
+    font-weight: bold;
+  }
+
+  .date-input {
+    width: 110px;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+
+<h1>票數統計工具</h1>
+
+<div class="toolbar">
+  <button onclick="addDate()">新增日期</button>
+  <button onclick="addPerson()">新增人物</button>
+  <button onclick="exportCSV()">匯出 CSV</button>
+  <button class="danger" onclick="clearData()">清空資料</button>
+</div>
+
+<div class="table-wrap">
+  <table id="voteTable"></table>
+</div>
+
+<script>
+let dates = JSON.parse(localStorage.getItem("vote_dates")) || ["5/10"];
+let people = JSON.parse(localStorage.getItem("vote_people")) || ["人物A", "人物B"];
+let votes = JSON.parse(localStorage.getItem("vote_data")) || {};
+
+function saveData() {
+  localStorage.setItem("vote_dates", JSON.stringify(dates));
+  localStorage.setItem("vote_people", JSON.stringify(people));
+  localStorage.setItem("vote_data", JSON.stringify(votes));
+}
+
+function getVote(person, date) {
+  return Number(votes[person + "_" + date]) || 0;
+}
+
+function setVote(person, date, value) {
+  votes[person + "_" + date] = Number(value) || 0;
+  saveData();
+  renderTable();
+}
+
+function renderTable() {
+  const table = document.getElementById("voteTable");
+  table.innerHTML = "";
+
+  let html = "<tr>";
+  html += "<th class='name-col'>人物名稱</th>";
+
+  dates.forEach((date, index) => {
+    html += `
+      <th>
+        <input class="date-input" value="${date}" onchange="renameDate(${index}, this.value)">
+      </th>
+    `;
+  });
+
+  html += "<th class='total-col'>人物總票數</th>";
+  html += "</tr>";
+
+  people.forEach((person, pIndex) => {
+    html += "<tr>";
+    html += `
+      <td class="name-col">
+        <input class="name-input" value="${person}" onchange="renamePerson(${pIndex}, this.value)">
+      </td>
+    `;
+
+    let personTotal = 0;
+
+    dates.forEach(date => {
+      const value = getVote(person, date);
+      personTotal += value;
+
+      html += `
+        <td>
+          <input type="number" min="0" value="${value}" 
+          onchange="setVote('${escapeText(person)}', '${escapeText(date)}', this.value)">
+        </td>
+      `;
+    });
+
+    html += `<td class="total-col">${personTotal}</td>`;
+    html += "</tr>";
+  });
+
+  html += "<tr class='total-row'>";
+  html += "<td>每日總票數</td>";
+
+  dates.forEach(date => {
+    let dateTotal = 0;
+
+    people.forEach(person => {
+      dateTotal += getVote(person, date);
+    });
+
+    html += `<td>${dateTotal}</td>`;
+  });
+
+  let grandTotal = 0;
+  people.forEach(person => {
+    dates.forEach(date => {
+      grandTotal += getVote(person, date);
+    });
+  });
+
+  html += `<td>${grandTotal}</td>`;
+  html += "</tr>";
+
+  table.innerHTML = html;
+}
+
+function addDate() {
+  const newDate = prompt("請輸入日期，例如：5/11");
+  if (!newDate) return;
+
+  if (dates.includes(newDate)) {
+    alert("這個日期已經存在");
+    return;
+  }
+
+  dates.push(newDate);
+  saveData();
+  renderTable();
+}
+
+function addPerson() {
+  const newPerson = prompt("請輸入人物名稱");
+  if (!newPerson) return;
+
+  if (people.includes(newPerson)) {
+    alert("這個人物已經存在");
+    return;
+  }
+
+  people.push(newPerson);
+  saveData();
+  renderTable();
+}
+
+function renameDate(index, newName) {
+  const oldName = dates[index];
+  if (!newName) {
+    alert("日期不能空白");
+    renderTable();
+    return;
+  }
+
+  dates[index] = newName;
+
+  const newVotes = {};
+  Object.keys(votes).forEach(key => {
+    const newKey = key.replace("_" + oldName, "_" + newName);
+    newVotes[newKey] = votes[key];
+  });
+
+  votes = newVotes;
+  saveData();
+  renderTable();
+}
+
+function renamePerson(index, newName) {
+  const oldName = people[index];
+  if (!newName) {
+    alert("人物名稱不能空白");
+    renderTable();
+    return;
+  }
+
+  people[index] = newName;
+
+  const newVotes = {};
+  Object.keys(votes).forEach(key => {
+    const newKey = key.replace(oldName + "_", newName + "_");
+    newVotes[newKey] = votes[key];
+  });
+
+  votes = newVotes;
+  saveData();
+  renderTable();
+}
+
+function clearData() {
+  if (!confirm("確定要清空所有資料嗎？")) return;
+
+  localStorage.removeItem("vote_dates");
+  localStorage.removeItem("vote_people");
+  localStorage.removeItem("vote_data");
+
+  dates = ["5/10"];
+  people = ["人物A", "人物B"];
+  votes = {};
+
+  saveData();
+  renderTable();
+}
+
+function exportCSV() {
+  let csv = "人物名稱," + dates.join(",") + ",人物總票數\n";
+
+  people.forEach(person => {
+    let row = [person];
+    let total = 0;
+
+    dates.forEach(date => {
+      const value = getVote(person, date);
+      row.push(value);
+      total += value;
+    });
+
+    row.push(total);
+    csv += row.join(",") + "\n";
+  });
+
+  let totalRow = ["每日總票數"];
+  let grandTotal = 0;
+
+  dates.forEach(date => {
+    let dateTotal = 0;
+    people.forEach(person => {
+      dateTotal += getVote(person, date);
+    });
+    totalRow.push(dateTotal);
+    grandTotal += dateTotal;
+  });
+
+  totalRow.push(grandTotal);
+  csv += totalRow.join(",");
+
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "票數統計.csv";
+  link.click();
+}
+
+function escapeText(text) {
+  return String(text).replace(/'/g, "\\'");
+}
+
+renderTable();
+</script>
+
+</body>
+</html>
