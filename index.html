@@ -17,6 +17,7 @@ body{
   margin:0;
   padding:20px;
   color:#222;
+  overflow-x:hidden;
 }
 
 h1{text-align:center}
@@ -53,7 +54,8 @@ button:disabled{background:#9ca3af;cursor:not-allowed}
 .editing{color:#16a34a}
 
 .table-wrap{
-  overflow:auto;
+  overflow-x:auto;
+  overflow-y:auto;
   background:white;
   border-radius:12px;
   box-shadow:0 2px 10px rgba(0,0,0,.08);
@@ -61,6 +63,7 @@ button:disabled{background:#9ca3af;cursor:not-allowed}
   max-height:75vh;
   border:1px solid #d1d5db;
   position:relative;
+  width:100%;
 }
 
 table{
@@ -68,7 +71,6 @@ table{
   border-spacing:0;
   table-layout:fixed;
   width:max-content;
-  min-width:100%;
 }
 
 th,td{
@@ -101,7 +103,7 @@ th{
 }
 
 th.name-col{
-  z-index:6;
+  z-index:20;
 }
 
 .total-col{
@@ -115,7 +117,7 @@ th.name-col{
 }
 
 .total-row .name-col{
-  background:#fecaca;
+  background:#fecaca !important;
 }
 
 input{
@@ -171,7 +173,7 @@ input:disabled{
 </div>
 
 <div class="note">
-  左側人物名稱已固定，可左右拖曳下方捲軸查看日期票數。
+  左側人物名稱固定，右側日期與票數可水平捲動。
 </div>
 
 <script type="module">
