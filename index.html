@@ -452,8 +452,15 @@ let votes = {};
 let history = [];
 let wheelRotation = 0;
 
+function safeKey(text){
+  return btoa(unescape(encodeURIComponent(String(text))))
+    .replaceAll("+","-")
+    .replaceAll("/","_")
+    .replaceAll("=","");
+}
+
 function voteKey(person, date){
-  return person + "|||" + date;
+  return safeKey(person) + "___" + safeKey(date);
 }
 
 function oldVoteKey(person, date){
