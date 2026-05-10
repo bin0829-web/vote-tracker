@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>票數統計工具</title>
+<title>楓谷風票數統計抽獎工具</title>
 
 <style>
 :root{
@@ -11,16 +11,34 @@
   --vote-col-width: 135px;
 }
 
+*{box-sizing:border-box}
+
 body{
   font-family:"Microsoft JhengHei",sans-serif;
-  background:#f5f7fb;
   margin:0;
   padding:20px;
-  color:#222;
+  color:#374151;
   overflow-x:hidden;
+  background:
+    radial-gradient(circle at 15% 15%, #ffffff 0 4%, transparent 5%),
+    radial-gradient(circle at 80% 12%, #ffffff 0 5%, transparent 6%),
+    linear-gradient(180deg,#bde7ff 0%,#e9f8ff 45%,#fff4c7 100%);
+  min-height:100vh;
 }
 
-h1{text-align:center}
+h1{
+  text-align:center;
+  margin:8px 0 6px;
+  color:#4b5563;
+  text-shadow:2px 2px 0 #fff;
+}
+
+.subtitle{
+  text-align:center;
+  font-weight:bold;
+  color:#f97316;
+  margin-bottom:10px;
+}
 
 .toolbar{
   display:flex;
@@ -31,18 +49,25 @@ h1{text-align:center}
 }
 
 button{
-  border:0;
-  background:#2563eb;
-  color:white;
+  border:3px solid #8b5e34;
+  background:linear-gradient(#ffe38a,#f59e0b);
+  color:#4b2e13;
   padding:8px 14px;
-  border-radius:8px;
+  border-radius:14px;
   cursor:pointer;
   font-size:15px;
+  font-weight:bold;
+  box-shadow:0 4px 0 #8b5e34, 0 6px 12px rgba(0,0,0,.15);
 }
 
-button:hover{background:#1d4ed8}
-button:disabled{background:#9ca3af;cursor:not-allowed}
-.danger{background:#dc2626}
+button:hover{filter:brightness(1.05)}
+button:active{transform:translateY(3px);box-shadow:0 1px 0 #8b5e34}
+button:disabled{background:#cbd5e1;color:#64748b;border-color:#94a3b8;box-shadow:none;cursor:not-allowed}
+
+.blue-btn{background:linear-gradient(#93c5fd,#3b82f6);color:#fff}
+.red-btn{background:linear-gradient(#fca5a5,#ef4444);color:#fff}
+.green-btn{background:linear-gradient(#86efac,#22c55e);color:#064e3b}
+.purple-btn{background:linear-gradient(#d8b4fe,#a855f7);color:#fff}
 
 .status{
   text-align:center;
@@ -53,14 +78,39 @@ button:disabled{background:#9ca3af;cursor:not-allowed}
 .readonly{color:#dc2626}
 .editing{color:#16a34a}
 
+.panel{
+  background:rgba(255,255,255,.72);
+  border:3px solid #8b5e34;
+  border-radius:18px;
+  padding:12px;
+  box-shadow:0 8px 20px rgba(0,0,0,.12);
+}
+
+.summary{
+  display:flex;
+  justify-content:center;
+  gap:14px;
+  flex-wrap:wrap;
+  margin-bottom:12px;
+  font-weight:bold;
+}
+
+.badge{
+  background:#fff7ed;
+  border:2px solid #fdba74;
+  color:#9a3412;
+  padding:6px 12px;
+  border-radius:999px;
+}
+
 .table-wrap{
   overflow:auto;
   background:white;
-  border-radius:12px;
-  box-shadow:0 2px 10px rgba(0,0,0,.08);
+  border-radius:14px;
+  box-shadow:0 2px 10px rgba(0,0,0,.12);
   padding:0;
-  max-height:75vh;
-  border:1px solid #d1d5db;
+  max-height:66vh;
+  border:3px solid #8b5e34;
   position:relative;
   width:100%;
 }
@@ -83,7 +133,7 @@ th,td{
 }
 
 th{
-  background:#e0ecff;
+  background:#e0f2fe;
   font-weight:bold;
   position:sticky;
   top:0;
@@ -101,13 +151,17 @@ th{
   box-shadow:4px 0 8px rgba(0,0,0,.18);
 }
 
-th.name-col{
-  z-index:20;
-}
+th.name-col{z-index:20}
 
 .total-col{
   background:#dcfce7;
   font-weight:bold;
+}
+
+.rate-col{
+  background:#f3e8ff;
+  font-weight:bold;
+  color:#7e22ce;
 }
 
 .total-row td{
@@ -120,29 +174,24 @@ th.name-col{
 }
 
 .scroll-spacer{
-  min-width:calc(100vw - var(--name-col-width) - var(--vote-col-width) - 55px);
-  width:calc(100vw - var(--name-col-width) - var(--vote-col-width) - 55px);
+  min-width:calc(100vw - var(--name-col-width) - var(--vote-col-width) * 2 - 60px);
+  width:calc(100vw - var(--name-col-width) - var(--vote-col-width) * 2 - 60px);
   border-right:0;
   background:transparent !important;
   pointer-events:none;
 }
 
 input{
-  box-sizing:border-box;
   width:100%;
   padding:6px;
   text-align:center;
   border:1px solid #cbd5e1;
-  border-radius:6px;
+  border-radius:8px;
   font-size:15px;
 }
 
 .name-input{
   text-align:left;
-  font-weight:bold;
-}
-
-.date-input{
   font-weight:bold;
 }
 
@@ -157,30 +206,217 @@ input:disabled{
   font-size:13px;
   margin-top:10px;
 }
+
+.lottery-box{
+  margin-top:16px;
+  display:none;
+}
+
+.lottery-title{
+  text-align:center;
+  font-size:24px;
+  font-weight:bold;
+  color:#7c2d12;
+  text-shadow:2px 2px 0 #fff;
+  margin-bottom:12px;
+}
+
+.wheel-area{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:24px;
+}
+
+.wheel-wrap{
+  position:relative;
+  width:520px;
+  max-width:92vw;
+  aspect-ratio:1/1;
+}
+
+#wheelCanvas{
+  width:100%;
+  height:100%;
+  border-radius:50%;
+  border:8px solid #8b5e34;
+  background:#fff;
+  box-shadow:0 10px 25px rgba(0,0,0,.25);
+}
+
+.pointer{
+  position:absolute;
+  top:-10px;
+  left:50%;
+  transform:translateX(-50%);
+  width:0;
+  height:0;
+  border-left:22px solid transparent;
+  border-right:22px solid transparent;
+  border-top:42px solid #ef4444;
+  z-index:5;
+  filter:drop-shadow(0 3px 2px rgba(0,0,0,.3));
+}
+
+.wheel-center{
+  position:absolute;
+  inset:50%;
+  transform:translate(-50%,-50%);
+  width:105px;
+  height:105px;
+  border-radius:50%;
+  background:linear-gradient(#fff7ed,#fdba74);
+  border:5px solid #8b5e34;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:bold;
+  color:#7c2d12;
+  box-shadow:0 4px 10px rgba(0,0,0,.25);
+}
+
+.winner-card{
+  min-width:280px;
+  max-width:380px;
+  background:#fff7ed;
+  border:4px solid #8b5e34;
+  border-radius:18px;
+  padding:18px;
+  box-shadow:0 8px 20px rgba(0,0,0,.18);
+  text-align:center;
+}
+
+.winner-name{
+  font-size:32px;
+  font-weight:bold;
+  color:#dc2626;
+  margin:12px 0;
+}
+
+.history{
+  margin-top:14px;
+  max-height:220px;
+  overflow:auto;
+  text-align:left;
+  background:white;
+  border:2px dashed #fdba74;
+  border-radius:12px;
+  padding:10px;
+}
+
+.history div{
+  padding:5px 0;
+  border-bottom:1px solid #fed7aa;
+}
+
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.45);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:999;
+}
+
+.modal-content{
+  background:linear-gradient(#fff7ed,#ffedd5);
+  border:5px solid #8b5e34;
+  border-radius:24px;
+  padding:28px;
+  max-width:90vw;
+  text-align:center;
+  box-shadow:0 15px 40px rgba(0,0,0,.35);
+}
+
+.modal-content h2{
+  font-size:34px;
+  color:#dc2626;
+  margin:0 0 10px;
+}
+
+.modal-content .bigwinner{
+  font-size:42px;
+  font-weight:bold;
+  color:#7e22ce;
+  margin:12px 0;
+}
+
+@media(max-width:768px){
+  body{padding:10px}
+  .table-wrap{max-height:60vh}
+  .wheel-wrap{width:360px}
+}
 </style>
 </head>
 
 <body>
 
-<h1>票數統計工具</h1>
+<h1>🍁 楓谷風票數統計抽獎工具 🍁</h1>
+<div class="subtitle">票數越高，中獎率越高</div>
 
 <div class="status" id="modeText">讀取中...</div>
 
 <div class="toolbar">
-  <button onclick="loginEdit()" id="loginBtn">進入編輯模式</button>
-  <button onclick="logoutEdit()" id="logoutBtn" style="display:none;">離開編輯模式</button>
+  <button class="blue-btn" onclick="loginEdit()" id="loginBtn">進入編輯模式</button>
+  <button class="blue-btn" onclick="logoutEdit()" id="logoutBtn" style="display:none;">離開編輯模式</button>
   <button onclick="addDate()" id="addDateBtn" disabled>新增日期</button>
   <button onclick="addPerson()" id="addPersonBtn" disabled>新增人物</button>
-  <button onclick="exportCSV()">匯出 CSV</button>
-  <button class="danger" onclick="clearData()" id="clearBtn" disabled>清空資料</button>
+  <button class="green-btn" onclick="toggleLottery()">開啟/關閉轉盤</button>
+  <button class="purple-btn" onclick="exportCSV()">匯出 CSV</button>
+  <button class="red-btn" onclick="clearData()" id="clearBtn" disabled>清空資料</button>
 </div>
 
-<div class="table-wrap">
-  <table id="voteTable"></table>
+<div class="panel">
+  <div class="summary">
+    <div class="badge">總票數：<span id="grandTotalText">0</span></div>
+    <div class="badge">有效抽獎人數：<span id="validCountText">0</span></div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="voteTable"></table>
+  </div>
+
+  <div class="note">
+    左側人物名稱固定，右側可水平捲動到最右，查看人物總票數與中獎率。
+  </div>
 </div>
 
-<div class="note">
-  左側人物名稱固定，右側可水平捲動到最右，讓人物總票數對齊人物名稱。
+<div class="lottery-box panel" id="lotteryBox">
+  <div class="lottery-title">🍄 楓谷幸運轉盤 🍄</div>
+
+  <div class="toolbar">
+    <button class="green-btn" onclick="startLottery()">開始抽獎</button>
+    <button class="red-btn" onclick="clearHistory()" id="clearHistoryBtn" disabled>清除抽獎紀錄</button>
+  </div>
+
+  <div class="wheel-area">
+    <div class="wheel-wrap">
+      <div class="pointer"></div>
+      <canvas id="wheelCanvas" width="800" height="800"></canvas>
+      <div class="wheel-center">LUCKY</div>
+    </div>
+
+    <div class="winner-card">
+      <div>目前中獎者</div>
+      <div class="winner-name" id="winnerName">尚未抽獎</div>
+      <div id="winnerInfo">0 票｜0%</div>
+
+      <h3>抽獎紀錄</h3>
+      <div class="history" id="historyBox">尚無紀錄</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="winnerModal">
+  <div class="modal-content">
+    <h2>🎉 恭喜中獎 🎉</h2>
+    <div class="bigwinner" id="modalWinner">---</div>
+    <div id="modalWinnerInfo"></div>
+    <br>
+    <button onclick="closeWinnerModal()">確認</button>
+  </div>
 </div>
 
 <script type="module">
@@ -207,17 +443,39 @@ let isEditMode = sessionStorage.getItem("vote_edit_mode") === "true";
 let dates = ["5/10"];
 let people = ["人物A", "人物B"];
 let votes = {};
+let history = [];
+let wheelRotation = 0;
+let isSpinning = false;
 
-function voteKey(person, date){
-  return person + "|||" + date;
-}
-
-function oldVoteKey(person, date){
-  return person + "_" + date;
-}
+function voteKey(person, date){ return person + "|||" + date; }
+function oldVoteKey(person, date){ return person + "_" + date; }
 
 function getVote(person, date){
   return Number(votes[voteKey(person,date)] ?? votes[oldVoteKey(person,date)] ?? 0);
+}
+
+function getPersonTotal(person){
+  return dates.reduce((sum,date)=>sum + getVote(person,date),0);
+}
+
+function getGrandTotal(){
+  return people.reduce((sum,person)=>sum + getPersonTotal(person),0);
+}
+
+function getRate(person){
+  const grand = getGrandTotal();
+  if(grand <= 0) return 0;
+  return getPersonTotal(person) / grand * 100;
+}
+
+function getLotteryList(){
+  return people
+    .map(person=>({
+      name:person,
+      total:getPersonTotal(person),
+      rate:getRate(person)
+    }))
+    .filter(item=>item.total > 0);
 }
 
 function updateMode(){
@@ -231,12 +489,13 @@ function updateMode(){
   document.getElementById("addDateBtn").disabled = !isEditMode;
   document.getElementById("addPersonBtn").disabled = !isEditMode;
   document.getElementById("clearBtn").disabled = !isEditMode;
+  document.getElementById("clearHistoryBtn").disabled = !isEditMode;
 }
 
 function saveData(){
   if(!isEditMode) return;
-  renderTable();
-  set(dataRef,{dates,people,votes});
+  renderAll();
+  set(dataRef,{dates,people,votes,history});
 }
 
 onValue(dataRef, snapshot=>{
@@ -246,22 +505,20 @@ onValue(dataRef, snapshot=>{
     dates = data.dates || [];
     people = data.people || [];
     votes = data.votes || {};
+    history = data.history || [];
   }
 
-  updateMode();
-  renderTable();
+  renderAll();
 });
 
 window.loginEdit = function(){
   const pwd = prompt("請輸入編輯密碼");
-
   if(pwd === null) return;
 
   if(pwd === EDIT_PASSWORD){
     isEditMode = true;
     sessionStorage.setItem("vote_edit_mode","true");
-    updateMode();
-    renderTable();
+    renderAll();
   }else{
     alert("密碼錯誤");
   }
@@ -270,52 +527,141 @@ window.loginEdit = function(){
 window.logoutEdit = function(){
   isEditMode = false;
   sessionStorage.removeItem("vote_edit_mode");
-  updateMode();
-  renderTable();
+  renderAll();
 };
 
 window.addDate = function(){
   if(!isEditMode) return;
-
   const newDate = prompt("請輸入日期，例如：5/11");
   if(!newDate) return;
-
-  if(dates.includes(newDate)){
-    alert("這個日期已經存在");
-    return;
-  }
-
+  if(dates.includes(newDate)) return alert("這個日期已經存在");
   dates.push(newDate);
   saveData();
 };
 
 window.addPerson = function(){
   if(!isEditMode) return;
-
   const newPerson = prompt("請輸入人物名稱");
   if(!newPerson) return;
-
-  if(people.includes(newPerson)){
-    alert("這個人物已經存在");
-    return;
-  }
-
+  if(people.includes(newPerson)) return alert("這個人物已經存在");
   people.push(newPerson);
   saveData();
 };
 
 window.clearData = function(){
   if(!isEditMode) return;
-  if(!confirm("確定要清空所有資料嗎？")) return;
+  if(!confirm("確定要清空所有票數資料嗎？")) return;
 
   dates = ["5/10"];
   people = ["人物A","人物B"];
   votes = {};
+  history = [];
   saveData();
 };
 
+window.clearHistory = function(){
+  if(!isEditMode) return;
+  if(!confirm("確定清除抽獎紀錄嗎？")) return;
+  history = [];
+  saveData();
+};
+
+window.toggleLottery = function(){
+  const box = document.getElementById("lotteryBox");
+  box.style.display = box.style.display === "none" || !box.style.display ? "block" : "none";
+  drawWheel();
+};
+
+window.startLottery = function(){
+  if(isSpinning) return;
+
+  const list = getLotteryList();
+  const grandTotal = getGrandTotal();
+
+  if(list.length === 0 || grandTotal <= 0){
+    alert("目前沒有可抽獎的人物，請先輸入票數。");
+    return;
+  }
+
+  const rand = Math.random() * grandTotal;
+  let acc = 0;
+  let winner = list[0];
+
+  for(const item of list){
+    acc += item.total;
+    if(rand <= acc){
+      winner = item;
+      break;
+    }
+  }
+
+  let startAngle = 0;
+  let targetMiddle = 0;
+
+  for(const item of list){
+    const angle = item.total / grandTotal * Math.PI * 2;
+    if(item.name === winner.name){
+      targetMiddle = startAngle + angle / 2;
+      break;
+    }
+    startAngle += angle;
+  }
+
+  const pointerAngle = -Math.PI / 2;
+  const targetRotation = pointerAngle - targetMiddle;
+  const extraRounds = Math.PI * 2 * 7;
+  const finalRotation = targetRotation + extraRounds;
+
+  const startRotation = wheelRotation;
+  const duration = 5200;
+  const startTime = performance.now();
+
+  isSpinning = true;
+
+  function animate(now){
+    const t = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - t, 4);
+    wheelRotation = startRotation + (finalRotation - startRotation) * eased;
+    drawWheel();
+
+    if(t < 1){
+      requestAnimationFrame(animate);
+    }else{
+      isSpinning = false;
+      wheelRotation = targetRotation;
+      drawWheel();
+
+      const record = {
+        name:winner.name,
+        total:winner.total,
+        rate:winner.rate,
+        time:new Date().toLocaleString("zh-TW")
+      };
+
+      history.unshift(record);
+      document.getElementById("winnerName").textContent = winner.name;
+      document.getElementById("winnerInfo").textContent = `${winner.total} 票｜${winner.rate.toFixed(2)}%`;
+      document.getElementById("modalWinner").textContent = winner.name;
+      document.getElementById("modalWinnerInfo").textContent = `${winner.total} 票｜中獎率 ${winner.rate.toFixed(2)}%`;
+      document.getElementById("winnerModal").style.display = "flex";
+
+      if(isEditMode){
+        saveData();
+      }else{
+        renderHistory();
+      }
+    }
+  }
+
+  requestAnimationFrame(animate);
+};
+
+window.closeWinnerModal = function(){
+  document.getElementById("winnerModal").style.display = "none";
+};
+
 window.exportCSV = function(){
-  let csv = "人物名稱," + dates.join(",") + ",人物總票數\n";
+  let csv = "人物名稱," + dates.join(",") + ",人物總票數,中獎率\n";
 
   people.forEach(person=>{
     let row = [person];
@@ -328,6 +674,7 @@ window.exportCSV = function(){
     });
 
     row.push(total);
+    row.push(getRate(person).toFixed(2) + "%");
     csv += row.join(",") + "\n";
   });
 
@@ -342,6 +689,7 @@ window.exportCSV = function(){
   });
 
   totalRow.push(grandTotal);
+  totalRow.push("100%");
   csv += totalRow.join(",");
 
   const blob = new Blob(["\uFEFF" + csv],{type:"text/csv;charset=utf-8;"});
@@ -353,18 +701,13 @@ window.exportCSV = function(){
 
 function renameDate(index,newName){
   if(!isEditMode) return;
-
   newName = newName.trim();
-  if(!newName){
-    renderTable();
-    return;
-  }
+  if(!newName) return renderAll();
 
   const oldName = dates[index];
   dates[index] = newName;
 
   const newVotes = {};
-
   Object.keys(votes).forEach(key=>{
     if(key.includes("|||")){
       const [person,date] = key.split("|||");
@@ -380,18 +723,13 @@ function renameDate(index,newName){
 
 function renamePerson(index,newName){
   if(!isEditMode) return;
-
   newName = newName.trim();
-  if(!newName){
-    renderTable();
-    return;
-  }
+  if(!newName) return renderAll();
 
   const oldName = people[index];
   people[index] = newName;
 
   const newVotes = {};
-
   Object.keys(votes).forEach(key=>{
     if(key.includes("|||")){
       const [person,date] = key.split("|||");
@@ -417,13 +755,22 @@ function setVote(personIndex,dateIndex,value){
 
 function calcNameWidth(){
   let maxLen = 4;
-
-  people.forEach(name=>{
-    maxLen = Math.max(maxLen, String(name).length);
-  });
-
+  people.forEach(name=>maxLen = Math.max(maxLen, String(name).length));
   const width = Math.min(Math.max(maxLen * 18 + 70, 180), 420);
   document.documentElement.style.setProperty("--name-col-width", width + "px");
+}
+
+function renderAll(){
+  updateMode();
+  renderTable();
+  drawWheel();
+  renderHistory();
+
+  const grand = getGrandTotal();
+  const valid = getLotteryList().length;
+
+  document.getElementById("grandTotalText").textContent = grand;
+  document.getElementById("validCountText").textContent = valid;
 }
 
 function renderTable(){
@@ -438,17 +785,19 @@ function renderTable(){
   dates.forEach((date,index)=>{
     html += `
       <th>
-        <input class="date-input date-edit" data-index="${index}" value="${escapeHtml(date)}" ${isEditMode ? "" : "disabled"}>
+        <input class="date-edit" data-index="${index}" value="${escapeHtml(date)}" ${isEditMode ? "" : "disabled"}>
       </th>
     `;
   });
 
   html += "<th class='total-col'>人物總票數</th>";
+  html += "<th class='rate-col'>中獎率</th>";
   html += "<th class='scroll-spacer'></th>";
   html += "</tr>";
 
   people.forEach((person,pIndex)=>{
-    let personTotal = 0;
+    const personTotal = getPersonTotal(person);
+    const rate = getRate(person);
 
     html += "<tr>";
     html += `
@@ -459,7 +808,6 @@ function renderTable(){
 
     dates.forEach((date,dIndex)=>{
       const value = getVote(person,date);
-      personTotal += value;
 
       html += `
         <td>
@@ -473,6 +821,7 @@ function renderTable(){
     });
 
     html += `<td class="total-col">${personTotal}</td>`;
+    html += `<td class="rate-col">${rate.toFixed(2)}%</td>`;
     html += "<td class='scroll-spacer'></td>";
     html += "</tr>";
   });
@@ -480,42 +829,113 @@ function renderTable(){
   html += "<tr class='total-row'>";
   html += "<td class='name-col'>每日總票數</td>";
 
-  let grandTotal = 0;
-
   dates.forEach(date=>{
     let dateTotal = 0;
     people.forEach(person=>dateTotal += getVote(person,date));
-    grandTotal += dateTotal;
     html += `<td>${dateTotal}</td>`;
   });
 
-  html += `<td>${grandTotal}</td>`;
+  html += `<td>${getGrandTotal()}</td>`;
+  html += "<td>100%</td>";
   html += "<td class='scroll-spacer'></td>";
   html += "</tr>";
 
   table.innerHTML = html;
 
   document.querySelectorAll(".date-edit").forEach(input=>{
-    input.addEventListener("change",()=>{
-      renameDate(Number(input.dataset.index),input.value);
-    });
+    input.addEventListener("change",()=>renameDate(Number(input.dataset.index),input.value));
   });
 
   document.querySelectorAll(".person-edit").forEach(input=>{
-    input.addEventListener("change",()=>{
-      renamePerson(Number(input.dataset.index),input.value);
-    });
+    input.addEventListener("change",()=>renamePerson(Number(input.dataset.index),input.value));
   });
 
   document.querySelectorAll(".vote-edit").forEach(input=>{
     input.addEventListener("change",()=>{
-      setVote(
-        Number(input.dataset.personIndex),
-        Number(input.dataset.dateIndex),
-        input.value
-      );
+      setVote(Number(input.dataset.personIndex),Number(input.dataset.dateIndex),input.value);
     });
   });
+}
+
+function drawWheel(){
+  const canvas = document.getElementById("wheelCanvas");
+  if(!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  const list = getLotteryList();
+  const grandTotal = getGrandTotal();
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const radius = canvas.width * 0.46;
+
+  if(list.length === 0 || grandTotal <= 0){
+    ctx.fillStyle = "#fff7ed";
+    ctx.beginPath();
+    ctx.arc(cx,cy,radius,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = "#92400e";
+    ctx.font = "bold 34px Microsoft JhengHei";
+    ctx.textAlign = "center";
+    ctx.fillText("請先輸入票數",cx,cy);
+    return;
+  }
+
+  const colors = ["#fca5a5","#fdba74","#fde68a","#86efac","#93c5fd","#c4b5fd","#f9a8d4","#67e8f9"];
+  let angleStart = wheelRotation;
+
+  list.forEach((item,i)=>{
+    const angle = item.total / grandTotal * Math.PI * 2;
+    const angleEnd = angleStart + angle;
+
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,radius,angleStart,angleEnd);
+    ctx.closePath();
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.fill();
+    ctx.strokeStyle = "#8b5e34";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    const mid = angleStart + angle / 2;
+    const textR = radius * 0.66;
+    const tx = cx + Math.cos(mid) * textR;
+    const ty = cy + Math.sin(mid) * textR;
+
+    ctx.save();
+    ctx.translate(tx,ty);
+    ctx.rotate(mid);
+    if(Math.cos(mid) < 0) ctx.rotate(Math.PI);
+
+    ctx.fillStyle = "#4b2e13";
+    ctx.font = "bold 22px Microsoft JhengHei";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    const label = `${item.name} ${item.rate.toFixed(1)}%`;
+    ctx.fillText(label.slice(0,18),0,0);
+
+    ctx.restore();
+
+    angleStart = angleEnd;
+  });
+}
+
+function renderHistory(){
+  const box = document.getElementById("historyBox");
+
+  if(!history || history.length === 0){
+    box.innerHTML = "尚無紀錄";
+    return;
+  }
+
+  box.innerHTML = history.map((item,index)=>{
+    return `<div>第 ${history.length - index} 次：<b>${escapeHtml(item.name)}</b>｜${item.total} 票｜${Number(item.rate).toFixed(2)}%｜${escapeHtml(item.time || "")}</div>`;
+  }).join("");
 }
 
 function escapeHtml(text){
@@ -526,8 +946,7 @@ function escapeHtml(text){
     .replaceAll('"',"&quot;");
 }
 
-updateMode();
-renderTable();
+renderAll();
 </script>
 
 </body>
