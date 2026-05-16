@@ -160,6 +160,16 @@ th{
 
 th.name-col{z-index:20}
 
+.meta-row td{
+  background:#fff7ed;
+  font-weight:bold;
+}
+
+.meta-label{
+  background:#fed7aa !important;
+  color:#9a3412;
+}
+
 .total-col{
   background:#dcfce7;
   font-weight:bold;
@@ -169,6 +179,12 @@ th.name-col{z-index:20}
   background:#f3e8ff;
   font-weight:bold;
   color:#7e22ce;
+}
+
+.income-total-col{
+  background:#fef9c3;
+  font-weight:bold;
+  color:#854d0e;
 }
 
 .total-row td{
@@ -181,8 +197,8 @@ th.name-col{z-index:20}
 }
 
 .scroll-spacer{
-  min-width:calc(100vw - var(--name-col-width) - var(--vote-col-width) * 2 - 60px);
-  width:calc(100vw - var(--name-col-width) - var(--vote-col-width) * 2 - 60px);
+  min-width:calc(100vw - var(--name-col-width) - var(--vote-col-width) * 3 - 60px);
+  width:calc(100vw - var(--name-col-width) - var(--vote-col-width) * 3 - 60px);
   border-right:0;
   background:transparent !important;
   pointer-events:none;
@@ -357,7 +373,7 @@ input:disabled{
 <body>
 
 <h1>🍁 楓谷公會硬幣捐贈統計抽獎工具 🍁</h1>
-<div class="subtitle">票數越高，中獎率越高</div>
+<div class="subtitle">票數越高，中獎率越高｜個人總所得＝每日個人所得 × 當日個人票數</div>
 
 <div class="status" id="modeText">讀取中...</div>
 
@@ -375,6 +391,7 @@ input:disabled{
   <div class="summary">
     <div class="badge">總票數：<span id="grandTotalText">0</span></div>
     <div class="badge">有效抽獎人數：<span id="validCountText">0</span></div>
+    <div class="badge">個人總所得合計：<span id="allIncomeText">0</span></div>
   </div>
 
   <div class="table-wrap">
@@ -382,7 +399,7 @@ input:disabled{
   </div>
 
   <div class="note">
-    左側人物名稱固定，右側可水平捲動到最右，查看人物總票數與中獎率。
+    左側人物名稱固定，右側可水平捲動。日期下方可輸入「捐贈所得」與「個人所得」。
   </div>
 </div>
 
@@ -449,6 +466,7 @@ let isSpinning = false;
 let dates = ["5/10"];
 let people = ["人物A", "人物B"];
 let votes = {};
+let dateIncome = {};
 let history = [];
 let wheelRotation = 0;
 
@@ -463,12 +481,23 @@ function voteKey(person, date){
   return safeKey(person) + "___" + safeKey(date);
 }
 
-function oldVoteKey(person, date){
-  return person + "_" + date;
+function incomeKey(date){
+  return safeKey(date);
 }
 
 function getVote(person, date){
-  return Number(votes[voteKey(person,date)] ?? votes[oldVoteKey(person,date)] ?? 0);
+  return Number(votes[voteKey(person,date)] ?? 0);
+}
+
+function getDateIncome(date, type){
+  const key = incomeKey(date);
+  return Number(dateIncome[key]?.[type] ?? 0);
+}
+
+function setDateIncome(date, type, value){
+  const key = incomeKey(date);
+  if(!dateIncome[key]) dateIncome[key] = {};
+  dateIncome[key][type] = Number(value) || 0;
 }
 
 function getPersonTotal(person){
@@ -483,6 +512,16 @@ function getRate(person){
   const grand = getGrandTotal();
   if(grand <= 0) return 0;
   return getPersonTotal(person) / grand * 100;
+}
+
+function getPersonIncomeTotal(person){
+  return dates.reduce((sum,date)=>{
+    return sum + getVote(person,date) * getDateIncome(date,"personalIncome");
+  },0);
+}
+
+function getAllIncomeTotal(){
+  return people.reduce((sum,person)=>sum + getPersonIncomeTotal(person),0);
 }
 
 function getLotteryList(){
@@ -501,6 +540,14 @@ function scanInputsToMemory(){
     const date = dates[Number(input.dataset.dateIndex)];
     if(person && date){
       votes[voteKey(person,date)] = Number(input.value) || 0;
+    }
+  });
+
+  document.querySelectorAll(".income-edit").forEach(input=>{
+    const date = dates[Number(input.dataset.dateIndex)];
+    const type = input.dataset.type;
+    if(date && type){
+      setDateIncome(date,type,input.value);
     }
   });
 }
@@ -536,8 +583,9 @@ async function saveToFirebase(){
       dates,
       people,
       votes,
+      dateIncome,
       history,
-      updatedAt: new Date().toISOString()
+      updatedAt:new Date().toISOString()
     });
   }catch(err){
     console.error(err);
@@ -555,6 +603,7 @@ onValue(dataRef, snapshot=>{
     dates = data.dates || [];
     people = data.people || [];
     votes = data.votes || {};
+    dateIncome = data.dateIncome || {};
     history = data.history || [];
   }
 
@@ -563,7 +612,6 @@ onValue(dataRef, snapshot=>{
 
 window.loginEdit = function(){
   const pwd = prompt("請輸入編輯密碼");
-
   if(pwd === null) return;
 
   if(pwd === EDIT_PASSWORD){
@@ -576,7 +624,6 @@ window.loginEdit = function(){
 
 window.logoutEdit = async function(){
   scanInputsToMemory();
-
   await saveToFirebase();
 
   isEditMode = false;
@@ -625,11 +672,12 @@ window.addPerson = async function(){
 
 window.clearData = async function(){
   if(!isEditMode) return;
-  if(!confirm("確定要清空所有票數資料嗎？")) return;
+  if(!confirm("確定要清空所有票數與所得資料嗎？")) return;
 
   dates = ["5/10"];
   people = ["人物A","人物B"];
   votes = {};
+  dateIncome = {};
   history = [];
 
   renderAll();
@@ -745,41 +793,34 @@ window.closeWinnerModal = function(){
 window.exportCSV = function(){
   scanInputsToMemory();
 
-  let csv = "人物名稱," + dates.join(",") + ",人物總票數,中獎率\n";
+  let csv = "人物名稱,";
+
+  dates.forEach(date=>{
+    csv += `${date}票數,${date}捐贈所得,${date}個人所得,`;
+  });
+
+  csv += "人物總票數,中獎率,個人總所得\n";
 
   people.forEach(person=>{
     let row = [person];
-    let total = 0;
 
     dates.forEach(date=>{
-      const value = getVote(person,date);
-      row.push(value);
-      total += value;
+      row.push(getVote(person,date));
+      row.push(getDateIncome(date,"donationIncome"));
+      row.push(getDateIncome(date,"personalIncome"));
     });
 
-    row.push(total);
+    row.push(getPersonTotal(person));
     row.push(getRate(person).toFixed(2) + "%");
+    row.push(getPersonIncomeTotal(person));
+
     csv += row.join(",") + "\n";
   });
-
-  let totalRow = ["每日總票數"];
-  let grandTotal = 0;
-
-  dates.forEach(date=>{
-    let dateTotal = 0;
-    people.forEach(person=>dateTotal += getVote(person,date));
-    totalRow.push(dateTotal);
-    grandTotal += dateTotal;
-  });
-
-  totalRow.push(grandTotal);
-  totalRow.push("100%");
-  csv += totalRow.join(",");
 
   const blob = new Blob(["\uFEFF" + csv],{type:"text/csv;charset=utf-8;"});
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = "票數統計.csv";
+  link.download = "楓谷公會硬幣捐贈統計抽獎工具.csv";
   link.click();
 };
 
@@ -805,20 +846,18 @@ async function renameDate(index,newName){
     return;
   }
 
+  const oldIncomeKey = incomeKey(oldName);
+  const newIncomeKey = incomeKey(newName);
+
   dates[index] = newName;
 
-  const newVotes = {};
+  if(dateIncome[oldIncomeKey]){
+    dateIncome[newIncomeKey] = dateIncome[oldIncomeKey];
+    delete dateIncome[oldIncomeKey];
+  }
 
-  Object.keys(votes).forEach(key=>{
-    if(key.includes("|||")){
-      const [person,date] = key.split("|||");
-      newVotes[voteKey(person,date === oldName ? newName : date)] = votes[key];
-    }else{
-      newVotes[key.replace("_" + oldName,"_" + newName)] = votes[key];
-    }
-  });
+  votes = rebuildVotesAfterRename(oldName,newName,"date");
 
-  votes = newVotes;
   renderAll();
   await saveToFirebase();
 }
@@ -846,21 +885,36 @@ async function renamePerson(index,newName){
   }
 
   people[index] = newName;
+  votes = rebuildVotesAfterRename(oldName,newName,"person");
 
-  const newVotes = {};
-
-  Object.keys(votes).forEach(key=>{
-    if(key.includes("|||")){
-      const [person,date] = key.split("|||");
-      newVotes[voteKey(person === oldName ? newName : person,date)] = votes[key];
-    }else{
-      newVotes[key.replace(oldName + "_",newName + "_")] = votes[key];
-    }
-  });
-
-  votes = newVotes;
   renderAll();
   await saveToFirebase();
+}
+
+function rebuildVotesAfterRename(oldName,newName,type){
+  const newVotes = {};
+
+  people.forEach(person=>{
+    dates.forEach(date=>{
+      let sourcePerson = person;
+      let sourceDate = date;
+
+      if(type === "person" && person === newName){
+        sourcePerson = oldName;
+      }
+
+      if(type === "date" && date === newName){
+        sourceDate = oldName;
+      }
+
+      const oldValue = votes[voteKey(sourcePerson,sourceDate)];
+      if(oldValue !== undefined){
+        newVotes[voteKey(person,date)] = oldValue;
+      }
+    });
+  });
+
+  return newVotes;
 }
 
 function setVoteLocal(personIndex,dateIndex,value){
@@ -879,6 +933,23 @@ function setVoteLocal(personIndex,dateIndex,value){
 
 async function setVoteAndSave(personIndex,dateIndex,value){
   setVoteLocal(personIndex,dateIndex,value);
+  await saveToFirebase();
+}
+
+function setIncomeLocal(dateIndex,type,value){
+  if(!isEditMode) return;
+
+  const date = dates[dateIndex];
+  if(!date) return;
+
+  setDateIncome(date,type,value);
+
+  updateTotalsOnly();
+  drawWheel();
+}
+
+async function setIncomeAndSave(dateIndex,type,value){
+  setIncomeLocal(dateIndex,type,value);
   await saveToFirebase();
 }
 
@@ -904,16 +975,20 @@ function renderAll(){
 function updateTotalsOnly(){
   const grand = getGrandTotal();
   const valid = getLotteryList().length;
+  const allIncome = getAllIncomeTotal();
 
   document.getElementById("grandTotalText").textContent = grand;
   document.getElementById("validCountText").textContent = valid;
+  document.getElementById("allIncomeText").textContent = formatNumber(allIncome);
 
   people.forEach((person,pIndex)=>{
     const totalCell = document.querySelector(`[data-total-index="${pIndex}"]`);
     const rateCell = document.querySelector(`[data-rate-index="${pIndex}"]`);
+    const incomeCell = document.querySelector(`[data-income-total-index="${pIndex}"]`);
 
     if(totalCell) totalCell.textContent = getPersonTotal(person);
     if(rateCell) rateCell.textContent = getRate(person).toFixed(2) + "%";
+    if(incomeCell) incomeCell.textContent = formatNumber(getPersonIncomeTotal(person));
   });
 
   dates.forEach((date,dIndex)=>{
@@ -927,6 +1002,9 @@ function updateTotalsOnly(){
 
   const grandCell = document.getElementById("grandTotalCell");
   if(grandCell) grandCell.textContent = grand;
+
+  const allIncomeCell = document.getElementById("allIncomeCell");
+  if(allIncomeCell) allIncomeCell.textContent = formatNumber(allIncome);
 }
 
 function renderTable(){
@@ -936,7 +1014,7 @@ function renderTable(){
   let html = "";
 
   html += "<tr>";
-  html += "<th class='name-col'>人物名稱</th>";
+  html += "<th class='name-col'>日期</th>";
 
   dates.forEach((date,index)=>{
     html += `
@@ -948,6 +1026,50 @@ function renderTable(){
 
   html += "<th class='total-col'>人物總票數</th>";
   html += "<th class='rate-col'>中獎率</th>";
+  html += "<th class='income-total-col'>個人總所得</th>";
+  html += "<th class='scroll-spacer'></th>";
+  html += "</tr>";
+
+  html += "<tr class='meta-row'>";
+  html += "<td class='name-col meta-label'>捐贈所得</td>";
+  dates.forEach((date,index)=>{
+    html += `
+      <td>
+        <input type="number" min="0" class="income-edit"
+          data-date-index="${index}"
+          data-type="donationIncome"
+          value="${getDateIncome(date,"donationIncome")}"
+          ${isEditMode ? "" : "disabled"}>
+      </td>
+    `;
+  });
+  html += "<td></td><td></td><td></td><td class='scroll-spacer'></td>";
+  html += "</tr>";
+
+  html += "<tr class='meta-row'>";
+  html += "<td class='name-col meta-label'>個人所得</td>";
+  dates.forEach((date,index)=>{
+    html += `
+      <td>
+        <input type="number" min="0" class="income-edit"
+          data-date-index="${index}"
+          data-type="personalIncome"
+          value="${getDateIncome(date,"personalIncome")}"
+          ${isEditMode ? "" : "disabled"}>
+      </td>
+    `;
+  });
+  html += "<td></td><td></td><td></td><td class='scroll-spacer'></td>";
+  html += "</tr>";
+
+  html += "<tr>";
+  html += "<th class='name-col'>人物名稱</th>";
+  dates.forEach(date=>{
+    html += `<th>${escapeHtml(date)}票數</th>`;
+  });
+  html += "<th class='total-col'>人物總票數</th>";
+  html += "<th class='rate-col'>中獎率</th>";
+  html += "<th class='income-total-col'>個人總所得</th>";
   html += "<th class='scroll-spacer'></th>";
   html += "</tr>";
 
@@ -974,6 +1096,7 @@ function renderTable(){
 
     html += `<td class="total-col" data-total-index="${pIndex}">${getPersonTotal(person)}</td>`;
     html += `<td class="rate-col" data-rate-index="${pIndex}">${getRate(person).toFixed(2)}%</td>`;
+    html += `<td class="income-total-col" data-income-total-index="${pIndex}">${formatNumber(getPersonIncomeTotal(person))}</td>`;
     html += "<td class='scroll-spacer'></td>";
     html += "</tr>";
   });
@@ -989,6 +1112,7 @@ function renderTable(){
 
   html += `<td id="grandTotalCell">${getGrandTotal()}</td>`;
   html += "<td>100%</td>";
+  html += `<td id="allIncomeCell">${formatNumber(getAllIncomeTotal())}</td>`;
   html += "<td class='scroll-spacer'></td>";
   html += "</tr>";
 
@@ -1027,6 +1151,32 @@ function renderTable(){
       setVoteAndSave(
         Number(input.dataset.personIndex),
         Number(input.dataset.dateIndex),
+        input.value
+      );
+    });
+  });
+
+  document.querySelectorAll(".income-edit").forEach(input=>{
+    input.addEventListener("input",()=>{
+      setIncomeLocal(
+        Number(input.dataset.dateIndex),
+        input.dataset.type,
+        input.value
+      );
+    });
+
+    input.addEventListener("change",()=>{
+      setIncomeAndSave(
+        Number(input.dataset.dateIndex),
+        input.dataset.type,
+        input.value
+      );
+    });
+
+    input.addEventListener("blur",()=>{
+      setIncomeAndSave(
+        Number(input.dataset.dateIndex),
+        input.dataset.type,
         input.value
       );
     });
@@ -1109,6 +1259,11 @@ function renderHistory(){
   box.innerHTML = history.map((item,index)=>{
     return `<div>第 ${history.length - index} 次：<b>${escapeHtml(item.name)}</b>｜${item.total} 票｜${Number(item.rate).toFixed(2)}%｜${escapeHtml(item.time || "")}</div>`;
   }).join("");
+}
+
+function formatNumber(num){
+  const n = Number(num) || 0;
+  return n.toLocaleString("zh-TW");
 }
 
 function escapeHtml(text){
