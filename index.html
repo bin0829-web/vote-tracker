@@ -84,6 +84,7 @@ button:disabled{
 .readonly{color:#dc2626}
 .editing{color:#16a34a}
 .saving{color:#2563eb}
+.lottery-on{color:#7e22ce}
 
 .panel{
   background:rgba(255,255,255,.72);
@@ -204,13 +205,14 @@ th.name-col{z-index:20}
   pointer-events:none;
 }
 
-input{
+input, select{
   width:100%;
   padding:6px;
   text-align:center;
   border:1px solid #cbd5e1;
   border-radius:8px;
   font-size:15px;
+  background:white;
 }
 
 .name-input{
@@ -244,10 +246,38 @@ input:disabled{
   margin-bottom:12px;
 }
 
-.wheel-area{
+.lottery-settings{
   display:flex;
   justify-content:center;
   align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom:12px;
+  font-weight:bold;
+}
+
+.lottery-settings input[type="number"]{
+  width:90px;
+}
+
+.check-wrap{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  background:#fff7ed;
+  border:2px solid #fdba74;
+  padding:6px 10px;
+  border-radius:999px;
+}
+
+.check-wrap input{
+  width:auto;
+}
+
+.wheel-area{
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
   flex-wrap:wrap;
   gap:24px;
 }
@@ -298,8 +328,8 @@ input:disabled{
 }
 
 .winner-card{
-  min-width:280px;
-  max-width:380px;
+  min-width:320px;
+  max-width:460px;
   background:#fff7ed;
   border:4px solid #8b5e34;
   border-radius:18px;
@@ -314,9 +344,25 @@ input:disabled{
   margin:12px 0;
 }
 
+.result-list{
+  margin-top:10px;
+  text-align:left;
+  background:#fff;
+  border:2px solid #fdba74;
+  border-radius:12px;
+  padding:10px;
+  max-height:260px;
+  overflow:auto;
+}
+
+.result-list div{
+  padding:6px 0;
+  border-bottom:1px solid #fed7aa;
+}
+
 .history{
   margin-top:14px;
-  max-height:220px;
+  max-height:260px;
   overflow:auto;
   text-align:left;
   background:white;
@@ -328,6 +374,14 @@ input:disabled{
 .history div{
   padding:5px 0;
   border-bottom:1px solid #fed7aa;
+}
+
+.verify{
+  display:block;
+  margin-top:4px;
+  font-size:12px;
+  color:#64748b;
+  word-break:break-all;
 }
 
 .modal{
@@ -345,7 +399,9 @@ input:disabled{
   border:5px solid #8b5e34;
   border-radius:24px;
   padding:28px;
-  max-width:90vw;
+  max-width:92vw;
+  max-height:88vh;
+  overflow:auto;
   text-align:center;
 }
 
@@ -356,10 +412,11 @@ input:disabled{
 }
 
 .modal-content .bigwinner{
-  font-size:42px;
+  font-size:30px;
   font-weight:bold;
   color:#7e22ce;
   margin:12px 0;
+  line-height:1.6;
 }
 
 @media(max-width:768px){
@@ -382,7 +439,7 @@ input:disabled{
   <button class="blue-btn" onclick="logoutEdit()" id="logoutBtn" style="display:none;">離開編輯模式</button>
   <button onclick="addDate()" id="addDateBtn" disabled>新增日期</button>
   <button onclick="addPerson()" id="addPersonBtn" disabled>新增人物</button>
-  <button class="green-btn" onclick="toggleLottery()">開啟/關閉轉盤</button>
+  <button class="green-btn" onclick="unlockLottery()" id="lotteryBtn">開啟轉盤</button>
   <button class="purple-btn" onclick="exportCSV()">匯出 CSV</button>
   <button class="red-btn" onclick="clearData()" id="clearBtn" disabled>清空資料</button>
 </div>
@@ -406,9 +463,19 @@ input:disabled{
 <div class="lottery-box panel" id="lotteryBox">
   <div class="lottery-title">🍄 楓谷幸運轉盤 🍄</div>
 
+  <div class="lottery-settings">
+    <label>抽取數量：</label>
+    <input type="number" id="drawCountInput" min="1" value="1">
+    <label class="check-wrap">
+      <input type="checkbox" id="noRepeatCheck" checked>
+      不重複中獎
+    </label>
+  </div>
+
   <div class="toolbar">
-    <button class="green-btn" onclick="startLottery()">開始抽獎</button>
-    <button class="red-btn" onclick="clearHistory()" id="clearHistoryBtn" disabled>清除抽獎紀錄</button>
+    <button class="green-btn" onclick="startLottery()" id="startLotteryBtn">開始抽獎</button>
+    <button class="red-btn" onclick="clearHistory()" id="clearHistoryBtn">清除抽獎紀錄</button>
+    <button class="blue-btn" onclick="lockLottery()">關閉轉盤</button>
   </div>
 
   <div class="wheel-area">
@@ -419,9 +486,11 @@ input:disabled{
     </div>
 
     <div class="winner-card">
-      <div>目前中獎者</div>
+      <div>本次抽獎結果</div>
       <div class="winner-name" id="winnerName">尚未抽獎</div>
-      <div id="winnerInfo">0 票｜0%</div>
+      <div id="winnerInfo">請設定抽取數量後開始抽獎</div>
+
+      <div class="result-list" id="batchResultBox">尚無本次結果</div>
 
       <h3>抽獎紀錄</h3>
       <div class="history" id="historyBox">尚無紀錄</div>
@@ -453,13 +522,15 @@ const firebaseConfig = {
   appId: "1:788601350797:web:4cb65f367cc0430dc250c4"
 };
 
-const EDIT_PASSWORD = "NM4DJ";
+const EDIT_PASSWORD = "NM4DJ1993";
+const LOTTERY_PASSWORD = "NM4DJ2026";
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const dataRef = ref(db, "voteTracker/main");
 
 let isEditMode = false;
+let isLotteryUnlocked = false;
 let isSaving = false;
 let isSpinning = false;
 
@@ -469,6 +540,7 @@ let votes = {};
 let dateIncome = {};
 let history = [];
 let wheelRotation = 0;
+let wheelOverrideList = null;
 
 function safeKey(text){
   return btoa(unescape(encodeURIComponent(String(text))))
@@ -524,14 +596,33 @@ function getAllIncomeTotal(){
   return people.reduce((sum,person)=>sum + getPersonIncomeTotal(person),0);
 }
 
-function getLotteryList(){
+function getLotteryList(excludedNames = []){
   return people
+    .filter(person=>!excludedNames.includes(person))
     .map(person=>({
       name:person,
       total:getPersonTotal(person),
       rate:getRate(person)
     }))
     .filter(item=>item.total > 0);
+}
+
+function getCurrentWheelList(){
+  return wheelOverrideList || getLotteryList();
+}
+
+function getCryptoRandomUnit(){
+  const arr = new Uint32Array(1);
+  crypto.getRandomValues(arr);
+  return arr[0] / 4294967296;
+}
+
+async function sha256(text){
+  const buffer = new TextEncoder().encode(text);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b=>b.toString(16).padStart(2,"0"))
+    .join("");
 }
 
 function scanInputsToMemory(){
@@ -557,10 +648,14 @@ function updateMode(){
 
   if(isSaving){
     modeText.innerHTML = "<span class='saving'>資料儲存中...</span>";
+  }else if(isEditMode && isLotteryUnlocked){
+    modeText.innerHTML = "<span class='editing'>目前狀態：編輯模式</span>　<span class='lottery-on'>轉盤已解鎖</span>";
+  }else if(isEditMode){
+    modeText.innerHTML = "<span class='editing'>目前狀態：編輯模式</span>";
+  }else if(isLotteryUnlocked){
+    modeText.innerHTML = "<span class='readonly'>目前狀態：唯讀模式</span>　<span class='lottery-on'>轉盤已解鎖</span>";
   }else{
-    modeText.innerHTML = isEditMode
-      ? "<span class='editing'>目前狀態：編輯模式</span>"
-      : "<span class='readonly'>目前狀態：唯讀模式</span>";
+    modeText.innerHTML = "<span class='readonly'>目前狀態：唯讀模式</span>";
   }
 
   document.getElementById("loginBtn").style.display = isEditMode ? "none" : "inline-block";
@@ -569,7 +664,9 @@ function updateMode(){
   document.getElementById("addDateBtn").disabled = !isEditMode || isSaving;
   document.getElementById("addPersonBtn").disabled = !isEditMode || isSaving;
   document.getElementById("clearBtn").disabled = !isEditMode || isSaving;
-  document.getElementById("clearHistoryBtn").disabled = !isEditMode || isSaving;
+
+  const lotteryBtn = document.getElementById("lotteryBtn");
+  lotteryBtn.textContent = isLotteryUnlocked ? "轉盤已開啟" : "開啟轉盤";
 }
 
 async function saveToFirebase(){
@@ -632,6 +729,31 @@ window.logoutEdit = async function(){
   renderAll();
 };
 
+window.unlockLottery = function(){
+  if(isLotteryUnlocked){
+    document.getElementById("lotteryBox").style.display = "block";
+    drawWheel();
+    return;
+  }
+
+  const pwd = prompt("請輸入轉盤密碼");
+  if(pwd === null) return;
+
+  if(pwd === LOTTERY_PASSWORD){
+    isLotteryUnlocked = true;
+    document.getElementById("lotteryBox").style.display = "block";
+    renderAll();
+  }else{
+    alert("轉盤密碼錯誤");
+  }
+};
+
+window.lockLottery = function(){
+  isLotteryUnlocked = false;
+  document.getElementById("lotteryBox").style.display = "none";
+  renderAll();
+};
+
 window.addDate = async function(){
   if(!isEditMode) return;
 
@@ -685,7 +807,7 @@ window.clearData = async function(){
 };
 
 window.clearHistory = async function(){
-  if(!isEditMode) return;
+  if(!isLotteryUnlocked) return alert("請先輸入轉盤密碼。");
   if(!confirm("確定清除抽獎紀錄嗎？")) return;
 
   history = [];
@@ -693,97 +815,125 @@ window.clearHistory = async function(){
   await saveToFirebase();
 };
 
-window.toggleLottery = function(){
-  const box = document.getElementById("lotteryBox");
-  box.style.display = box.style.display === "none" || !box.style.display ? "block" : "none";
-  drawWheel();
-};
-
-window.startLottery = function(){
+window.startLottery = async function(){
+  if(!isLotteryUnlocked) return alert("請先輸入轉盤密碼。");
   if(isSpinning) return;
 
   scanInputsToMemory();
 
-  const list = getLotteryList();
-  const grandTotal = getGrandTotal();
+  const drawCountInput = document.getElementById("drawCountInput");
+  const noRepeat = document.getElementById("noRepeatCheck").checked;
+  let drawCount = Number(drawCountInput.value) || 1;
 
-  if(list.length === 0 || grandTotal <= 0){
+  const initialList = getLotteryList();
+  if(initialList.length === 0){
     alert("目前沒有可抽獎的人物，請先輸入票數。");
     return;
   }
 
-  const rand = Math.random() * grandTotal;
-  let acc = 0;
-  let winner = list[0];
-
-  for(const item of list){
-    acc += item.total;
-    if(rand <= acc){
-      winner = item;
-      break;
-    }
+  if(noRepeat && drawCount > initialList.length){
+    drawCount = initialList.length;
+    drawCountInput.value = drawCount;
+    alert("抽取數量超過有效人數，已自動調整為有效人數上限。");
   }
 
-  let startAngle = 0;
-  let targetMiddle = 0;
+  document.getElementById("startLotteryBtn").disabled = true;
+  document.getElementById("batchResultBox").innerHTML = "抽獎進行中...";
+  document.getElementById("winnerName").textContent = "抽獎中...";
+  document.getElementById("winnerInfo").textContent = "";
 
-  for(const item of list){
-    const angle = item.total / grandTotal * Math.PI * 2;
-    if(item.name === winner.name){
-      targetMiddle = startAngle + angle / 2;
-      break;
-    }
-    startAngle += angle;
-  }
+  const excluded = [];
+  const results = [];
+  const batchTime = new Date().toLocaleString("zh-TW");
+  const batchId = Date.now().toString();
 
-  const pointerAngle = -Math.PI / 2;
-  const targetRotation = pointerAngle - targetMiddle;
-  const extraRounds = Math.PI * 2 * 7;
-  const finalRotation = targetRotation + extraRounds;
-  const startRotation = wheelRotation;
-  const duration = 5200;
-  const startTime = performance.now();
+  for(let i=1;i<=drawCount;i++){
+    const list = getLotteryList(noRepeat ? excluded : []);
+    const roundTotal = list.reduce((sum,item)=>sum + item.total,0);
 
-  isSpinning = true;
+    if(list.length === 0 || roundTotal <= 0) break;
 
-  function animate(now){
-    const t = Math.min((now - startTime) / duration, 1);
-    const eased = 1 - Math.pow(1 - t, 4);
+    const randomUnit = getCryptoRandomUnit();
+    const randomValue = randomUnit * roundTotal;
 
-    wheelRotation = startRotation + (finalRotation - startRotation) * eased;
-    drawWheel();
+    let acc = 0;
+    let winner = list[0];
+    let rangeStart = 0;
+    let rangeEnd = 0;
 
-    if(t < 1){
-      requestAnimationFrame(animate);
-    }else{
-      isSpinning = false;
-      wheelRotation = targetRotation;
-      drawWheel();
+    for(const item of list){
+      rangeStart = acc;
+      acc += item.total;
+      rangeEnd = acc;
 
-      const record = {
-        name:winner.name,
-        total:winner.total,
-        rate:winner.rate,
-        time:new Date().toLocaleString("zh-TW")
-      };
-
-      history.unshift(record);
-
-      document.getElementById("winnerName").textContent = winner.name;
-      document.getElementById("winnerInfo").textContent = `${winner.total} 票｜${winner.rate.toFixed(2)}%`;
-      document.getElementById("modalWinner").textContent = winner.name;
-      document.getElementById("modalWinnerInfo").textContent = `${winner.total} 票｜中獎率 ${winner.rate.toFixed(2)}%`;
-      document.getElementById("winnerModal").style.display = "flex";
-
-      renderHistory();
-
-      if(isEditMode){
-        saveToFirebase();
+      if(randomValue < acc){
+        winner = item;
+        break;
       }
     }
+
+    wheelOverrideList = list;
+    await spinToWinner(winner, list);
+
+    const chanceAtDraw = winner.total / roundTotal * 100;
+
+    const verifyRaw = JSON.stringify({
+      batchId,
+      round:i,
+      time:batchTime,
+      candidates:list.map(x=>({name:x.name,total:x.total})),
+      roundTotal,
+      randomValue,
+      rangeStart,
+      rangeEnd,
+      winner:winner.name
+    });
+
+    const verifyHash = await sha256(verifyRaw);
+
+    const result = {
+      round:i,
+      name:winner.name,
+      total:winner.total,
+      roundTotal,
+      chanceAtDraw,
+      randomValue,
+      rangeStart,
+      rangeEnd,
+      verifyHash
+    };
+
+    results.push(result);
+
+    if(noRepeat) excluded.push(winner.name);
+
+    renderBatchResults(results);
   }
 
-  requestAnimationFrame(animate);
+  wheelOverrideList = null;
+  drawWheel();
+
+  const batchRecord = {
+    batchId,
+    time:batchTime,
+    drawCount:results.length,
+    noRepeat,
+    results
+  };
+
+  history.unshift(batchRecord);
+
+  const winnerNames = results.map(r=>`第 ${r.round} 位：${r.name}`).join("<br>");
+  document.getElementById("winnerName").textContent = results.length > 0 ? results[0].name : "無結果";
+  document.getElementById("winnerInfo").textContent = `本次共抽出 ${results.length} 位`;
+  document.getElementById("modalWinner").innerHTML = winnerNames || "---";
+  document.getElementById("modalWinnerInfo").textContent = `抽獎時間：${batchTime}`;
+  document.getElementById("winnerModal").style.display = "flex";
+
+  renderHistory();
+  await saveToFirebase();
+
+  document.getElementById("startLotteryBtn").disabled = false;
 };
 
 window.closeWinnerModal = function(){
@@ -1183,13 +1333,60 @@ function renderTable(){
   });
 }
 
+function spinToWinner(winner, list){
+  return new Promise(resolve=>{
+    isSpinning = true;
+
+    const roundTotal = list.reduce((sum,item)=>sum + item.total,0);
+
+    let startAngle = 0;
+    let targetMiddle = 0;
+
+    for(const item of list){
+      const angle = item.total / roundTotal * Math.PI * 2;
+      if(item.name === winner.name){
+        targetMiddle = startAngle + angle / 2;
+        break;
+      }
+      startAngle += angle;
+    }
+
+    const pointerAngle = -Math.PI / 2;
+    const targetRotation = pointerAngle - targetMiddle;
+    const extraRounds = Math.PI * 2 * 5;
+    const finalRotation = targetRotation + extraRounds;
+    const startRotation = wheelRotation;
+    const duration = 2600;
+    const startTime = performance.now();
+
+    function animate(now){
+      const t = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 4);
+
+      wheelRotation = startRotation + (finalRotation - startRotation) * eased;
+      drawWheel();
+
+      if(t < 1){
+        requestAnimationFrame(animate);
+      }else{
+        wheelRotation = targetRotation;
+        isSpinning = false;
+        drawWheel();
+        resolve();
+      }
+    }
+
+    requestAnimationFrame(animate);
+  });
+}
+
 function drawWheel(){
   const canvas = document.getElementById("wheelCanvas");
   if(!canvas) return;
 
   const ctx = canvas.getContext("2d");
-  const list = getLotteryList();
-  const grandTotal = getGrandTotal();
+  const list = getCurrentWheelList();
+  const grandTotal = list.reduce((sum,item)=>sum + item.total,0);
 
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
@@ -1241,11 +1438,33 @@ function drawWheel(){
     ctx.font = "bold 22px Microsoft JhengHei";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`${item.name} ${item.rate.toFixed(1)}%`.slice(0,18),0,0);
+
+    const rate = grandTotal > 0 ? item.total / grandTotal * 100 : 0;
+    ctx.fillText(`${item.name} ${rate.toFixed(1)}%`.slice(0,18),0,0);
     ctx.restore();
 
     angleStart = angleEnd;
   });
+}
+
+function renderBatchResults(results){
+  const box = document.getElementById("batchResultBox");
+
+  if(!results || results.length === 0){
+    box.innerHTML = "尚無本次結果";
+    return;
+  }
+
+  box.innerHTML = results.map(r=>{
+    return `
+      <div>
+        <b>第 ${r.round} 位：${escapeHtml(r.name)}</b><br>
+        票數：${r.total}｜當輪中獎率：${r.chanceAtDraw.toFixed(2)}%<br>
+        亂數值：${r.randomValue.toFixed(6)}｜命中區間：${r.rangeStart.toFixed(6)} ～ ${r.rangeEnd.toFixed(6)}
+        <span class="verify">驗證碼：${r.verifyHash}</span>
+      </div>
+    `;
+  }).join("");
 }
 
 function renderHistory(){
@@ -1256,8 +1475,26 @@ function renderHistory(){
     return;
   }
 
-  box.innerHTML = history.map((item,index)=>{
-    return `<div>第 ${history.length - index} 次：<b>${escapeHtml(item.name)}</b>｜${item.total} 票｜${Number(item.rate).toFixed(2)}%｜${escapeHtml(item.time || "")}</div>`;
+  box.innerHTML = history.map((batch,index)=>{
+    if(batch.results){
+      const resultText = batch.results.map(r=>{
+        return `
+          <div>
+            第 ${r.round} 位：<b>${escapeHtml(r.name)}</b>｜${r.total} 票｜當輪機率 ${Number(r.chanceAtDraw).toFixed(2)}%
+            <span class="verify">亂數：${Number(r.randomValue).toFixed(6)}｜區間：${Number(r.rangeStart).toFixed(6)}～${Number(r.rangeEnd).toFixed(6)}｜驗證碼：${escapeHtml(r.verifyHash || "")}</span>
+          </div>
+        `;
+      }).join("");
+
+      return `
+        <div>
+          <b>批次 ${history.length - index}｜${escapeHtml(batch.time || "")}｜抽出 ${batch.drawCount || batch.results.length} 位｜${batch.noRepeat ? "不重複" : "可重複"}</b>
+          ${resultText}
+        </div>
+      `;
+    }
+
+    return `<div>舊紀錄：${escapeHtml(JSON.stringify(batch))}</div>`;
   }).join("");
 }
 
